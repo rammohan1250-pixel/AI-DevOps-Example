@@ -1,0 +1,40 @@
+name: Build and Publish Qwen3-8B Model
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install download tools
+        run: sudo apt-get update && sudo apt-get install -y curl
+
+      - name: Download Qwen3-8B GGUF
+        run: |
+          curl -fL --retry 5 --retry-delay 10 \
+            "https://huggingface.co/Qwen/Qwen3-8B-GGUF/resolve/main/Qwen3-8B-Q4_K_M.gguf" \
+            -o Qwen3-8B-Q4_K_M.gguf
+
+          ls -lh Qwen3-8B-Q4_K_M.gguf
+          test "$(stat -c%s Qwen3-8B-Q4_K_M.gguf)" -gt 4000000000
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push model image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/qwen3-8b-model:Q4_K_M
